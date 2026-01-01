@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Login with Code Generation</title>
+    <title>Google Sign-In with Code Generation</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -198,13 +198,23 @@
             font-size: 14px;
             border-top: 1px solid #e9ecef;
         }
+        
+        .info-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #856404;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🔐 Google Authentication</h1>
-            <p>Sign in to generate your unique code</p>
+            <p>Sign in to generate your verification code</p>
         </div>
         
         <div class="content">
@@ -228,21 +238,30 @@
             </div>
             
             <div class="code-display" id="codeDisplay">
-                <h3>✅ Your Authentication Code</h3>
+                <h3>✅ Your Verification Code</h3>
                 <div class="code-value" id="generatedCode"></div>
                 <button class="copy-btn" id="copyBtn">Copy Code</button>
                 <p style="margin-top: 15px; color: #666; font-size: 14px;">
-                    This code has been saved to your account.
+                    This 12-digit code has been saved to the database.<br>
+                    Use it in other apps to verify your identity.
                 </p>
             </div>
             
             <div class="user-info" id="userInfo">
                 <!-- User info will be populated here -->
             </div>
+            
+            <div class="info-box">
+                <strong>How it works:</strong><br>
+                1. Sign in with Google<br>
+                2. Get your unique 12-digit code<br>
+                3. Code is saved to Supabase database<br>
+                4. Use this code in other apps for verification
+            </div>
         </div>
         
         <footer>
-            <p>Code generation system | Your code will be saved automatically</p>
+            <p>Code generation system | Connected to Supabase</p>
         </footer>
     </div>
 
@@ -280,7 +299,7 @@
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             }
             
-            // Save code to Supabase table
+            // Save code to Supabase "codes" table
             async function saveCodeToDatabase(code, userId, userEmail) {
                 try {
                     console.log('Saving code to database:', { code, userId, userEmail });
@@ -289,7 +308,7 @@
                         .from('codes')
                         .insert([
                             {
-                                code: code.toString(),
+                                code: code.toString(), // Store as string
                                 created_by: userEmail,
                                 created_at: new Date().toISOString(),
                                 used: false,
@@ -297,18 +316,18 @@
                                 used_at: null
                             }
                         ])
-                        .select(); // Add .select() to get the inserted data back
+                        .select();
                     
                     if (error) {
                         console.error('Supabase insert error:', error);
                         throw error;
                     }
                     
-                    console.log('Code saved successfully:', data);
+                    console.log('Code saved successfully to "codes" table:', data);
                     return { success: true, data };
                     
                 } catch (error) {
-                    console.error('Error saving code:', error);
+                    console.error('Error saving code to database:', error);
                     return { success: false, error };
                 }
             }
@@ -323,7 +342,7 @@
             }
             
             // Show/hide loading
-            function showLoading(text = 'Processing authentication...') {
+            function showLoading(text = 'Processing...') {
                 loadingText.textContent = text;
                 loading.style.display = 'block';
                 googleSignInBtn.disabled = true;
@@ -344,25 +363,26 @@
                 
                 // Show user info
                 userInfo.innerHTML = `
-                    <h3>👤 Account Information</h3>
+                    <h3>👤 User Information</h3>
                     <p><strong>Email:</strong> ${userEmail}</p>
                     <p><strong>Code Generated:</strong> ${new Date().toLocaleString()}</p>
+                    <p><strong>Status:</strong> Code saved to database ✓</p>
                 `;
                 userInfo.style.display = 'block';
             }
             
             // Handle successful authentication
             async function handleSuccessfulLogin(user) {
-                showLoading('Generating your unique code...');
+                showLoading('Generating your verification code...');
                 
                 try {
-                    console.log('User logged in:', user);
+                    console.log('User logged in:', user.email);
                     
                     // Generate 12-digit code
                     const code = generate12DigitCode();
-                    console.log('Generated code:', code);
+                    console.log('Generated 12-digit code:', code);
                     
-                    // Save to database
+                    // Save to Supabase "codes" table
                     const saveResult = await saveCodeToDatabase(code, user.id, user.email);
                     
                     if (!saveResult.success) {
@@ -371,16 +391,16 @@
                     
                     // Display the code
                     displayCode(code, user.email);
-                    showMessage('Authentication successful! Your code has been generated and saved.', 'success');
+                    showMessage('Success! Your verification code has been generated and saved.', 'success');
                     
-                    // Clear URL hash
+                    // Clean URL (remove hash fragment)
                     if (window.location.hash) {
                         window.history.replaceState(null, '', window.location.pathname);
                     }
                     
                 } catch (error) {
                     console.error('Error in handleSuccessfulLogin:', error);
-                    showMessage('Error generating code: ' + error.message, 'error');
+                    showMessage('Error: ' + error.message, 'error');
                 } finally {
                     hideLoading();
                 }
@@ -391,8 +411,9 @@
                 showLoading('Redirecting to Google...');
                 
                 try {
+                    // Use current page URL for redirect (your actual website)
                     const currentUrl = window.location.origin + window.location.pathname;
-                    console.log('Redirect URL:', currentUrl);
+                    console.log('Redirecting back to:', currentUrl);
                     
                     const { error } = await supabaseClient.auth.signInWithOAuth({
                         provider: 'google',
@@ -425,16 +446,14 @@
                 });
             });
             
-            // Handle OAuth callback from URL hash
+            // Check if we're returning from OAuth callback
             async function handleOAuthCallback() {
-                console.log('Checking for OAuth callback...');
-                console.log('Current URL hash:', window.location.hash);
-                
+                // Check if URL has hash fragment (OAuth callback)
                 if (window.location.hash && window.location.hash.includes('access_token')) {
                     showLoading('Completing authentication...');
                     
                     try {
-                        // Supabase automatically handles the hash fragment
+                        // Let Supabase handle the OAuth callback
                         const { data, error } = await supabaseClient.auth.getSession();
                         
                         if (error) {
@@ -442,7 +461,7 @@
                         }
                         
                         if (data && data.session) {
-                            console.log('Session obtained from callback:', data.session);
+                            console.log('OAuth callback successful, user:', data.session.user.email);
                             await handleSuccessfulLogin(data.session.user);
                         }
                         
@@ -454,7 +473,7 @@
                 }
             }
             
-            // Check existing session
+            // Check if user is already logged in
             async function checkExistingSession() {
                 try {
                     const { data, error } = await supabaseClient.auth.getSession();
@@ -465,10 +484,9 @@
                     }
                     
                     if (data && data.session) {
-                        console.log('Existing session found:', data.session.user.email);
-                        await handleSuccessfulLogin(data.session.user);
-                    } else {
-                        console.log('No existing session found');
+                        console.log('User already logged in:', data.session.user.email);
+                        // Don't generate new code for existing session, just show login button
+                        // Or you could show their last code if you want
                     }
                     
                 } catch (error) {
@@ -481,17 +499,13 @@
                 console.log('Auth state changed:', event);
                 
                 if (event === 'SIGNED_IN' && session) {
-                    // This will trigger when Supabase processes the hash
-                    console.log('SIGNED_IN event triggered');
+                    // This handles the OAuth callback
                     await handleSuccessfulLogin(session.user);
                 } else if (event === 'SIGNED_OUT') {
                     // Reset UI
                     codeDisplay.style.display = 'none';
                     userInfo.style.display = 'none';
                     loginSection.style.display = 'block';
-                    showMessage('You have been signed out.', 'success');
-                } else if (event === 'INITIAL_SESSION') {
-                    console.log('Initial session event');
                 }
             });
             
@@ -500,22 +514,17 @@
             
             // Initialize on page load
             window.addEventListener('DOMContentLoaded', async () => {
-                console.log('Page loaded, initializing...');
+                console.log('Initializing authentication system...');
+                console.log('Current URL:', window.location.href);
+                console.log('Make sure this URL is in Supabase Authentication → URL Configuration:');
+                console.log('- Site URL:', window.location.origin);
+                console.log('- Redirect URLs:', window.location.origin + '/*');
                 
                 // First handle OAuth callback if present
                 await handleOAuthCallback();
                 
                 // Then check for existing session
                 await checkExistingSession();
-                
-                // Add debug info to console
-                console.log('Initialization complete');
-                console.log('Make sure these URLs are in Supabase Authentication → URL Configuration:');
-                console.log('1. Site URL: http://localhost:3000 (or your current URL)');
-                console.log('2. Redirect URLs:');
-                console.log('   - http://localhost:3000');
-                console.log('   - http://localhost:3000/*');
-                console.log('   - Your current URL:', window.location.origin);
             });
             
         })();
