@@ -212,11 +212,11 @@
             
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <p>Processing authentication...</p>
+                <p id="loadingText">Processing authentication...</p>
             </div>
             
             <div id="loginSection">
-                <button class="btn btn-google" id="googleSignInBtn" disabled>
+                <button class="btn btn-google" id="googleSignInBtn">
                     <svg class="google-icon" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -265,6 +265,7 @@
             const googleSignInBtn = document.getElementById('googleSignInBtn');
             const message = document.getElementById('message');
             const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
             const codeDisplay = document.getElementById('codeDisplay');
             const generatedCode = document.getElementById('generatedCode');
             const copyBtn = document.getElementById('copyBtn');
@@ -282,20 +283,28 @@
             // Save code to Supabase table
             async function saveCodeToDatabase(code, userId, userEmail) {
                 try {
+                    console.log('Saving code to database:', { code, userId, userEmail });
+                    
                     const { data, error } = await supabaseClient
                         .from('codes')
                         .insert([
                             {
-                                code: code.toString(), // Convert to string
+                                code: code.toString(),
                                 created_by: userEmail,
                                 created_at: new Date().toISOString(),
                                 used: false,
                                 used_by: null,
                                 used_at: null
                             }
-                        ]);
+                        ])
+                        .select(); // Add .select() to get the inserted data back
                     
-                    if (error) throw error;
+                    if (error) {
+                        console.error('Supabase insert error:', error);
+                        throw error;
+                    }
+                    
+                    console.log('Code saved successfully:', data);
                     return { success: true, data };
                     
                 } catch (error) {
@@ -314,7 +323,8 @@
             }
             
             // Show/hide loading
-            function showLoading() {
+            function showLoading(text = 'Processing authentication...') {
+                loadingText.textContent = text;
                 loading.style.display = 'block';
                 googleSignInBtn.disabled = true;
             }
@@ -343,25 +353,33 @@
             
             // Handle successful authentication
             async function handleSuccessfulLogin(user) {
-                showLoading();
+                showLoading('Generating your unique code...');
                 
                 try {
+                    console.log('User logged in:', user);
+                    
                     // Generate 12-digit code
                     const code = generate12DigitCode();
+                    console.log('Generated code:', code);
                     
                     // Save to database
                     const saveResult = await saveCodeToDatabase(code, user.id, user.email);
                     
                     if (!saveResult.success) {
-                        throw new Error('Failed to save code to database');
+                        throw new Error('Failed to save code to database: ' + saveResult.error.message);
                     }
                     
                     // Display the code
                     displayCode(code, user.email);
                     showMessage('Authentication successful! Your code has been generated and saved.', 'success');
                     
+                    // Clear URL hash
+                    if (window.location.hash) {
+                        window.history.replaceState(null, '', window.location.pathname);
+                    }
+                    
                 } catch (error) {
-                    console.error('Error:', error);
+                    console.error('Error in handleSuccessfulLogin:', error);
                     showMessage('Error generating code: ' + error.message, 'error');
                 } finally {
                     hideLoading();
@@ -370,19 +388,16 @@
             
             // Sign in with Google
             async function signInWithGoogle() {
-                showLoading();
+                showLoading('Redirecting to Google...');
                 
                 try {
-                    const currentUrl = window.location.href.split('#')[0];
+                    const currentUrl = window.location.origin + window.location.pathname;
+                    console.log('Redirect URL:', currentUrl);
                     
                     const { error } = await supabaseClient.auth.signInWithOAuth({
                         provider: 'google',
                         options: {
-                            redirectTo: currentUrl,
-                            queryParams: {
-                                access_type: 'offline',
-                                prompt: 'consent'
-                            }
+                            redirectTo: currentUrl
                         }
                     });
                     
@@ -410,30 +425,54 @@
                 });
             });
             
-            // Check existing session and handle OAuth callback
-            async function initializeAuth() {
-                try {
-                    // Enable login button
-                    googleSignInBtn.disabled = false;
+            // Handle OAuth callback from URL hash
+            async function handleOAuthCallback() {
+                console.log('Checking for OAuth callback...');
+                console.log('Current URL hash:', window.location.hash);
+                
+                if (window.location.hash && window.location.hash.includes('access_token')) {
+                    showLoading('Completing authentication...');
                     
-                    // Check for existing session
+                    try {
+                        // Supabase automatically handles the hash fragment
+                        const { data, error } = await supabaseClient.auth.getSession();
+                        
+                        if (error) {
+                            throw error;
+                        }
+                        
+                        if (data && data.session) {
+                            console.log('Session obtained from callback:', data.session);
+                            await handleSuccessfulLogin(data.session.user);
+                        }
+                        
+                    } catch (error) {
+                        console.error('OAuth callback error:', error);
+                        showMessage('Authentication error: ' + error.message, 'error');
+                        hideLoading();
+                    }
+                }
+            }
+            
+            // Check existing session
+            async function checkExistingSession() {
+                try {
                     const { data, error } = await supabaseClient.auth.getSession();
                     
-                    if (error) throw error;
-                    
-                    // If user is already logged in, generate and display code
-                    if (data && data.session) {
-                        await handleSuccessfulLogin(data.session.user);
+                    if (error) {
+                        console.error('Session check error:', error);
+                        return;
                     }
                     
-                    // Clean up URL hash if present
-                    if (window.location.hash) {
-                        window.history.replaceState(null, '', window.location.pathname);
+                    if (data && data.session) {
+                        console.log('Existing session found:', data.session.user.email);
+                        await handleSuccessfulLogin(data.session.user);
+                    } else {
+                        console.log('No existing session found');
                     }
                     
                 } catch (error) {
-                    console.error('Initialization error:', error);
-                    googleSignInBtn.disabled = false;
+                    console.error('Error checking session:', error);
                 }
             }
             
@@ -442,12 +481,17 @@
                 console.log('Auth state changed:', event);
                 
                 if (event === 'SIGNED_IN' && session) {
+                    // This will trigger when Supabase processes the hash
+                    console.log('SIGNED_IN event triggered');
                     await handleSuccessfulLogin(session.user);
                 } else if (event === 'SIGNED_OUT') {
                     // Reset UI
                     codeDisplay.style.display = 'none';
                     userInfo.style.display = 'none';
                     loginSection.style.display = 'block';
+                    showMessage('You have been signed out.', 'success');
+                } else if (event === 'INITIAL_SESSION') {
+                    console.log('Initial session event');
                 }
             });
             
@@ -455,7 +499,24 @@
             googleSignInBtn.addEventListener('click', signInWithGoogle);
             
             // Initialize on page load
-            window.addEventListener('DOMContentLoaded', initializeAuth);
+            window.addEventListener('DOMContentLoaded', async () => {
+                console.log('Page loaded, initializing...');
+                
+                // First handle OAuth callback if present
+                await handleOAuthCallback();
+                
+                // Then check for existing session
+                await checkExistingSession();
+                
+                // Add debug info to console
+                console.log('Initialization complete');
+                console.log('Make sure these URLs are in Supabase Authentication → URL Configuration:');
+                console.log('1. Site URL: http://localhost:3000 (or your current URL)');
+                console.log('2. Redirect URLs:');
+                console.log('   - http://localhost:3000');
+                console.log('   - http://localhost:3000/*');
+                console.log('   - Your current URL:', window.location.origin);
+            });
             
         })();
     </script>
