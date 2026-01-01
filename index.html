@@ -208,6 +208,16 @@
             font-size: 14px;
             color: #856404;
         }
+        
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            margin-top: 20px;
+        }
+        
+        .logout-btn:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -237,18 +247,19 @@
                 </button>
             </div>
             
-            <div class="code-display" id="codeDisplay">
-                <h3>✅ Your Verification Code</h3>
-                <div class="code-value" id="generatedCode"></div>
-                <button class="copy-btn" id="copyBtn">Copy Code</button>
-                <p style="margin-top: 15px; color: #666; font-size: 14px;" id="codeStatus">
-                    This 12-digit code has been saved to the database.<br>
-                    Use it in other apps to verify your identity.
-                </p>
-            </div>
-            
-            <div class="user-info" id="userInfo">
-                <!-- User info will be populated here -->
+            <div id="codeSection" style="display: none;">
+                <div class="code-display" id="codeDisplay">
+                    <h3>✅ Your Verification Code</h3>
+                    <div class="code-value" id="generatedCode"></div>
+                    <button class="copy-btn" id="copyBtn">Copy Code</button>
+                    <p style="margin-top: 15px; color: #666; font-size: 14px;" id="codeStatus">
+                        This 12-digit code has been saved to the database.
+                    </p>
+                </div>
+                
+                <div class="user-info" id="userInfo"></div>
+                
+                <button class="btn logout-btn" id="signOutBtn">Sign Out</button>
             </div>
             
             <div class="info-box">
@@ -271,17 +282,12 @@
             const SUPABASE_URL = 'https://qsplvexeqsbrsgrfczog.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzcGx2ZXhlcXNicnNncmZjem9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0Mzk5OTksImV4cCI6MjA3NzAxNTk5OX0.QJV9XLvzoIPr1rE4LK4XOEoOAu-YCTQ-wkatNcqwlwE';
             
-            // Check if Supabase is loaded
-            if (typeof supabase === 'undefined') {
-                showMessage('Error: Supabase library not loaded. Check your internet connection.', 'error');
-                return;
-            }
-            
             // Initialize Supabase
             const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             
             // DOM Elements
             const googleSignInBtn = document.getElementById('googleSignInBtn');
+            const signOutBtn = document.getElementById('signOutBtn');
             const message = document.getElementById('message');
             const loading = document.getElementById('loading');
             const loadingText = document.getElementById('loadingText');
@@ -290,85 +296,17 @@
             const copyBtn = document.getElementById('copyBtn');
             const userInfo = document.getElementById('userInfo');
             const loginSection = document.getElementById('loginSection');
+            const codeSection = document.getElementById('codeSection');
             const codeStatus = document.getElementById('codeStatus');
-            
-            // Generate 12-digit random code
-            function generate12DigitCode() {
-                const min = 100000000000;
-                const max = 999999999999;
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            }
-            
-            // Check if user already has a code in the database
-            async function checkExistingCode(userEmail) {
-                try {
-                    console.log('Checking for existing code for:', userEmail);
-                    
-                    const { data, error } = await supabaseClient
-                        .from('codes')
-                        .select('*')
-                        .eq('created_by', userEmail)
-                        .order('created_at', { ascending: false })
-                        .limit(1);
-                    
-                    if (error) {
-                        console.error('Error checking existing code:', error);
-                        return null;
-                    }
-                    
-                    if (data && data.length > 0) {
-                        console.log('Found existing code:', data[0].code);
-                        return data[0];
-                    }
-                    
-                    console.log('No existing code found');
-                    return null;
-                    
-                } catch (error) {
-                    console.error('Error in checkExistingCode:', error);
-                    return null;
-                }
-            }
-            
-            // Save new code to Supabase "codes" table
-            async function saveCodeToDatabase(code, userEmail) {
-                try {
-                    console.log('Saving new code to database:', { code, userEmail });
-                    
-                    const { data, error } = await supabaseClient
-                        .from('codes')
-                        .insert([
-                            {
-                                code: code.toString(),
-                                created_by: userEmail,
-                                created_at: new Date().toISOString(),
-                                used: false,
-                                used_by: null,
-                                used_at: null
-                            }
-                        ])
-                        .select();
-                    
-                    if (error) {
-                        console.error('Supabase insert error:', error);
-                        throw error;
-                    }
-                    
-                    console.log('Code saved successfully:', data);
-                    return { success: true, data: data[0] };
-                    
-                } catch (error) {
-                    console.error('Error saving code to database:', error);
-                    return { success: false, error };
-                }
-            }
             
             // Show message
             function showMessage(text, type) {
                 message.textContent = text;
                 message.className = 'message ' + type;
+                message.style.display = 'block';
+                
                 setTimeout(() => {
-                    message.className = 'message';
+                    message.style.display = 'none';
                 }, 5000);
             }
             
@@ -384,20 +322,90 @@
                 googleSignInBtn.disabled = false;
             }
             
-            // Display the generated code
-            function displayCode(codeData, isNew = false) {
-                // Format code with dashes for readability: XXX-XXX-XXX-XXX
-                const formattedCode = codeData.code.toString().replace(/(\d{3})(\d{3})(\d{3})(\d{3})/, '$1-$2-$3-$4');
+            // Generate 12-digit random code
+            function generate12DigitCode() {
+                const min = 100000000000;
+                const max = 999999999999;
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+            
+            // Check if user already has a code in the database
+            async function getUserExistingCode(userEmail) {
+                try {
+                    console.log('Checking database for existing code for:', userEmail);
+                    
+                    const { data, error } = await supabaseClient
+                        .from('codes')
+                        .select('*')
+                        .eq('created_by', userEmail)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                    
+                    if (error) {
+                        console.error('Database query error:', error);
+                        return null;
+                    }
+                    
+                    if (data && data.length > 0) {
+                        console.log('Found existing code:', data[0].code);
+                        return data[0];
+                    }
+                    
+                    console.log('No existing code found');
+                    return null;
+                    
+                } catch (error) {
+                    console.error('Error checking for existing code:', error);
+                    return null;
+                }
+            }
+            
+            // Save new code to Supabase "codes" table
+            async function saveNewCodeToDatabase(code, userEmail) {
+                try {
+                    console.log('Saving new code to database:', code);
+                    
+                    const { data, error } = await supabaseClient
+                        .from('codes')
+                        .insert([
+                            {
+                                code: code.toString(),
+                                created_by: userEmail,
+                                created_at: new Date().toISOString(),
+                                used: false,
+                                used_by: null,
+                                used_at: null
+                            }
+                        ])
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        console.error('Error saving code:', error);
+                        throw error;
+                    }
+                    
+                    console.log('New code saved successfully:', data);
+                    return data;
+                    
+                } catch (error) {
+                    console.error('Error in saveNewCodeToDatabase:', error);
+                    throw error;
+                }
+            }
+            
+            // Display code to user
+            function displayCodeToUser(codeData, isNew = false) {
+                // Format code with dashes: XXX-XXX-XXX-XXX
+                const formattedCode = codeData.code.replace(/(\d{3})(\d{3})(\d{3})(\d{3})/, '$1-$2-$3-$4');
                 generatedCode.textContent = formattedCode;
-                codeDisplay.style.display = 'block';
-                loginSection.style.display = 'none';
                 
-                // Show status message
+                // Show status
                 if (isNew) {
-                    codeStatus.innerHTML = '✅ <strong>New code generated</strong> and saved to database.<br>Use it in other apps to verify your identity.';
+                    codeStatus.textContent = '✅ New code generated and saved to database';
                     codeStatus.style.color = '#155724';
                 } else {
-                    codeStatus.innerHTML = '✅ <strong>Existing code retrieved</strong> from database.<br>Use it in other apps to verify your identity.';
+                    codeStatus.textContent = '✅ Existing code retrieved from database';
                     codeStatus.style.color = '#0c5460';
                 }
                 
@@ -409,50 +417,56 @@
                     <p><strong>Code Generated:</strong> ${createdDate}</p>
                     <p><strong>Status:</strong> ${codeData.used ? 'Used' : 'Active'}</p>
                 `;
-                userInfo.style.display = 'block';
+                
+                // Show code section, hide login
+                loginSection.style.display = 'none';
+                codeSection.style.display = 'block';
             }
             
-            // Handle successful authentication
-            async function handleSuccessfulLogin(user) {
-                showLoading('Checking for existing code...');
+            // Handle user session and code
+            async function handleUserSession(user) {
+                if (!user || !user.email) {
+                    console.error('No user or email provided');
+                    return;
+                }
+                
+                showLoading('Checking your account...');
                 
                 try {
-                    console.log('User logged in:', user.email);
+                    console.log('Handling session for user:', user.email);
                     
-                    // First, check if user already has a code
-                    const existingCode = await checkExistingCode(user.email);
+                    // Check for existing code
+                    const existingCode = await getUserExistingCode(user.email);
                     
                     if (existingCode) {
-                        // User already has a code - show the existing one
-                        console.log('Showing existing code:', existingCode.code);
-                        displayCode(existingCode, false);
-                        showMessage('Welcome back! Showing your existing verification code.', 'success');
+                        // User has existing code - show it
+                        console.log('Showing existing code');
+                        displayCodeToUser(existingCode, false);
+                        showMessage('Welcome back! Showing your existing code.', 'success');
                     } else {
-                        // No existing code - generate a new one
+                        // No existing code - generate new one
                         showLoading('Generating new verification code...');
-                        const code = generate12DigitCode();
-                        console.log('Generated new 12-digit code:', code);
+                        const newCode = generate12DigitCode();
+                        console.log('Generating new code:', newCode);
                         
-                        // Save to Supabase "codes" table
-                        const saveResult = await saveCodeToDatabase(code, user.email);
+                        const savedCode = await saveNewCodeToDatabase(newCode, user.email);
                         
-                        if (!saveResult.success) {
-                            throw new Error('Failed to save code to database: ' + saveResult.error.message);
+                        if (savedCode) {
+                            displayCodeToUser(savedCode, true);
+                            showMessage('New code generated successfully!', 'success');
+                        } else {
+                            throw new Error('Failed to save new code');
                         }
-                        
-                        // Display the new code
-                        displayCode(saveResult.data, true);
-                        showMessage('Success! New verification code has been generated and saved.', 'success');
-                    }
-                    
-                    // Clean URL (remove hash fragment)
-                    if (window.location.hash) {
-                        window.history.replaceState(null, '', window.location.pathname);
                     }
                     
                 } catch (error) {
-                    console.error('Error in handleSuccessfulLogin:', error);
+                    console.error('Error in handleUserSession:', error);
                     showMessage('Error: ' + error.message, 'error');
+                    
+                    // On error, show login button
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
+                    
                 } finally {
                     hideLoading();
                 }
@@ -463,10 +477,8 @@
                 showLoading('Redirecting to Google...');
                 
                 try {
-                    // IMPORTANT: Use the exact URL you're currently on
                     const currentUrl = window.location.origin + window.location.pathname;
-                    console.log('Current URL:', currentUrl);
-                    console.log('Will redirect back to:', currentUrl);
+                    console.log('Redirect URL:', currentUrl);
                     
                     const { error } = await supabaseClient.auth.signInWithOAuth({
                         provider: 'google',
@@ -475,15 +487,33 @@
                         }
                     });
                     
-                    if (error) {
-                        console.error('Google sign in error:', error);
-                        throw error;
-                    }
+                    if (error) throw error;
                     
                 } catch (error) {
                     hideLoading();
                     showMessage('Error signing in: ' + error.message, 'error');
                     console.error('Sign in error:', error);
+                }
+            }
+            
+            // Sign out
+            async function signOut() {
+                showLoading('Signing out...');
+                
+                try {
+                    const { error } = await supabaseClient.auth.signOut();
+                    
+                    if (error) throw error;
+                    
+                    // Reset UI
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
+                    showMessage('Signed out successfully', 'success');
+                    
+                } catch (error) {
+                    showMessage('Error signing out: ' + error.message, 'error');
+                } finally {
+                    hideLoading();
                 }
             }
             
@@ -502,25 +532,29 @@
                 });
             });
             
-            // Check if we're returning from OAuth callback
+            // Handle OAuth callback from URL
             async function handleOAuthCallback() {
-                // Check if URL has hash fragment (OAuth callback)
+                console.log('Checking for OAuth callback...');
+                
                 if (window.location.hash && window.location.hash.includes('access_token')) {
-                    console.log('Detected OAuth callback in URL');
+                    console.log('OAuth callback detected in URL');
                     showLoading('Completing authentication...');
                     
                     try {
-                        // Let Supabase handle the OAuth callback
+                        // Supabase will automatically handle the hash fragment
                         const { data, error } = await supabaseClient.auth.getSession();
                         
                         if (error) {
-                            console.error('Session error:', error);
+                            console.error('Session error during callback:', error);
                             throw error;
                         }
                         
                         if (data && data.session) {
-                            console.log('OAuth callback successful, user:', data.session.user.email);
-                            await handleSuccessfulLogin(data.session.user);
+                            console.log('User authenticated via callback:', data.session.user.email);
+                            await handleUserSession(data.session.user);
+                            
+                            // Clean URL
+                            window.history.replaceState(null, '', window.location.pathname);
                         }
                         
                     } catch (error) {
@@ -531,23 +565,34 @@
                 }
             }
             
-            // Check if user is already logged in
+            // Check for existing session on page load
             async function checkExistingSession() {
                 try {
+                    console.log('Checking for existing session...');
+                    
                     const { data, error } = await supabaseClient.auth.getSession();
                     
                     if (error) {
                         console.error('Session check error:', error);
+                        // Don't show error to user, just show login button
                         return;
                     }
                     
                     if (data && data.session) {
-                        console.log('User already logged in on page load:', data.session.user.email);
-                        await handleSuccessfulLogin(data.session.user);
+                        console.log('Found existing session for user:', data.session.user.email);
+                        await handleUserSession(data.session.user);
+                    } else {
+                        console.log('No existing session found');
+                        // Ensure login button is visible
+                        loginSection.style.display = 'block';
+                        codeSection.style.display = 'none';
                     }
                     
                 } catch (error) {
                     console.error('Error checking session:', error);
+                    // Ensure login button is visible even on error
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
                 }
             }
             
@@ -556,34 +601,24 @@
                 console.log('Auth state changed:', event);
                 
                 if (event === 'SIGNED_IN' && session) {
-                    console.log('SIGNED_IN event triggered for user:', session.user.email);
-                    await handleSuccessfulLogin(session.user);
+                    console.log('User signed in via state change');
+                    await handleUserSession(session.user);
                 } else if (event === 'SIGNED_OUT') {
-                    // Reset UI
-                    codeDisplay.style.display = 'none';
-                    userInfo.style.display = 'none';
-                    loginSection.style.display = 'block';
                     console.log('User signed out');
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
                 } else if (event === 'INITIAL_SESSION') {
                     console.log('Initial session loaded');
                 }
             });
             
-            // Event listener for Google sign in
+            // Event listeners
             googleSignInBtn.addEventListener('click', signInWithGoogle);
+            signOutBtn.addEventListener('click', signOut);
             
             // Initialize on page load
             window.addEventListener('DOMContentLoaded', async () => {
-                console.log('=== Initializing Authentication System ===');
-                console.log('Current full URL:', window.location.href);
-                console.log('Origin:', window.location.origin);
-                console.log('Pathname:', window.location.pathname);
-                
-                // Debug: Check if we're running on a server
-                if (window.location.protocol === 'file:') {
-                    console.warn('⚠️ WARNING: Running as file:// protocol. OAuth may not work properly.');
-                    showMessage('Warning: For OAuth to work, run this page on a web server (http://localhost:3000)', 'error');
-                }
+                console.log('=== Page Loaded ===');
                 
                 // First handle OAuth callback if present
                 await handleOAuthCallback();
@@ -592,6 +627,17 @@
                 await checkExistingSession();
                 
                 console.log('=== Initialization Complete ===');
+                
+                // Add timeout safety - if loading takes too long, show login button
+                setTimeout(() => {
+                    if (loading.style.display === 'block') {
+                        console.warn('Loading timeout - resetting UI');
+                        hideLoading();
+                        loginSection.style.display = 'block';
+                        codeSection.style.display = 'none';
+                        showMessage('Session check timed out. Please try signing in again.', 'error');
+                    }
+                }, 10000); // 10 second timeout
             });
             
         })();
