@@ -329,22 +329,32 @@
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             }
             
-            // Check if user already has a code in the database
+            // Check if user already has a code in the database - SIMPLIFIED VERSION
             async function getUserExistingCode(userEmail) {
                 try {
-                    console.log('Checking database for existing code for:', userEmail);
+                    console.log('Checking database for code for:', userEmail);
                     
-                    const { data, error } = await supabaseClient
+                    // Use a timeout to prevent hanging
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('Database query timeout')), 5000);
+                    });
+                    
+                    const queryPromise = supabaseClient
                         .from('codes')
                         .select('*')
                         .eq('created_by', userEmail)
                         .order('created_at', { ascending: false })
                         .limit(1);
                     
+                    // Race between query and timeout
+                    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+                    
                     if (error) {
                         console.error('Database query error:', error);
                         return null;
                     }
+                    
+                    console.log('Query result:', data);
                     
                     if (data && data.length > 0) {
                         console.log('Found existing code:', data[0].code);
@@ -355,7 +365,7 @@
                     return null;
                     
                 } catch (error) {
-                    console.error('Error checking for existing code:', error);
+                    console.error('Error checking for existing code:', error.message);
                     return null;
                 }
             }
@@ -397,7 +407,7 @@
             // Display code to user
             function displayCodeToUser(codeData, isNew = false) {
                 // Format code with dashes: XXX-XXX-XXX-XXX
-                const formattedCode = codeData.code.replace(/(\d{3})(\d{3})(\d{3})(\d{3})/, '$1-$2-$3-$4');
+                const formattedCode = codeData.code.toString().replace(/(\d{3})(\d{3})(\d{3})(\d{3})/, '$1-$2-$3-$4');
                 generatedCode.textContent = formattedCode;
                 
                 // Show status
@@ -423,37 +433,52 @@
                 codeSection.style.display = 'block';
             }
             
-            // Handle user session and code
+            // Handle user session and code - SIMPLIFIED
             async function handleUserSession(user) {
                 if (!user || !user.email) {
                     console.error('No user or email provided');
+                    showMessage('No user information found. Please sign in again.', 'error');
+                    hideLoading();
                     return;
                 }
                 
                 showLoading('Checking your account...');
+                console.log('Handling session for user:', user.email);
+                
+                // Set a timeout to prevent hanging
+                const sessionTimeout = setTimeout(() => {
+                    console.error('Session handling timeout');
+                    hideLoading();
+                    showMessage('Session check is taking too long. Please try again.', 'error');
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
+                }, 10000);
                 
                 try {
-                    console.log('Handling session for user:', user.email);
-                    
                     // Check for existing code
                     const existingCode = await getUserExistingCode(user.email);
                     
                     if (existingCode) {
                         // User has existing code - show it
                         console.log('Showing existing code');
+                        clearTimeout(sessionTimeout);
                         displayCodeToUser(existingCode, false);
                         showMessage('Welcome back! Showing your existing code.', 'success');
+                        hideLoading();
                     } else {
                         // No existing code - generate new one
+                        console.log('No existing code found, generating new one...');
                         showLoading('Generating new verification code...');
                         const newCode = generate12DigitCode();
-                        console.log('Generating new code:', newCode);
+                        console.log('Generated new code:', newCode);
                         
                         const savedCode = await saveNewCodeToDatabase(newCode, user.email);
                         
                         if (savedCode) {
+                            clearTimeout(sessionTimeout);
                             displayCodeToUser(savedCode, true);
                             showMessage('New code generated successfully!', 'success');
+                            hideLoading();
                         } else {
                             throw new Error('Failed to save new code');
                         }
@@ -461,14 +486,28 @@
                     
                 } catch (error) {
                     console.error('Error in handleUserSession:', error);
-                    showMessage('Error: ' + error.message, 'error');
+                    clearTimeout(sessionTimeout);
+                    
+                    // Try to check if we can at least see the table structure
+                    console.log('Trying to debug database connection...');
+                    
+                    // Fallback: Try a simple test query
+                    try {
+                        const testResult = await supabaseClient
+                            .from('codes')
+                            .select('count')
+                            .limit(1);
+                        console.log('Test query result:', testResult);
+                    } catch (testError) {
+                        console.error('Test query also failed:', testError);
+                    }
+                    
+                    showMessage('Error accessing database. Please check your connection.', 'error');
+                    hideLoading();
                     
                     // On error, show login button
                     loginSection.style.display = 'block';
                     codeSection.style.display = 'none';
-                    
-                } finally {
-                    hideLoading();
                 }
             }
             
@@ -575,6 +614,9 @@
                     if (error) {
                         console.error('Session check error:', error);
                         // Don't show error to user, just show login button
+                        hideLoading();
+                        loginSection.style.display = 'block';
+                        codeSection.style.display = 'none';
                         return;
                     }
                     
@@ -584,6 +626,7 @@
                     } else {
                         console.log('No existing session found');
                         // Ensure login button is visible
+                        hideLoading();
                         loginSection.style.display = 'block';
                         codeSection.style.display = 'none';
                     }
@@ -591,6 +634,7 @@
                 } catch (error) {
                     console.error('Error checking session:', error);
                     // Ensure login button is visible even on error
+                    hideLoading();
                     loginSection.style.display = 'block';
                     codeSection.style.display = 'none';
                 }
@@ -605,6 +649,7 @@
                     await handleUserSession(session.user);
                 } else if (event === 'SIGNED_OUT') {
                     console.log('User signed out');
+                    hideLoading();
                     loginSection.style.display = 'block';
                     codeSection.style.display = 'none';
                 } else if (event === 'INITIAL_SESSION') {
@@ -620,6 +665,9 @@
             window.addEventListener('DOMContentLoaded', async () => {
                 console.log('=== Page Loaded ===');
                 
+                // Show loading initially
+                showLoading('Initializing...');
+                
                 // First handle OAuth callback if present
                 await handleOAuthCallback();
                 
@@ -627,17 +675,6 @@
                 await checkExistingSession();
                 
                 console.log('=== Initialization Complete ===');
-                
-                // Add timeout safety - if loading takes too long, show login button
-                setTimeout(() => {
-                    if (loading.style.display === 'block') {
-                        console.warn('Loading timeout - resetting UI');
-                        hideLoading();
-                        loginSection.style.display = 'block';
-                        codeSection.style.display = 'none';
-                        showMessage('Session check timed out. Please try signing in again.', 'error');
-                    }
-                }, 10000); // 10 second timeout
             });
             
         })();
