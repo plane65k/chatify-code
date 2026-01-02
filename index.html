@@ -422,11 +422,11 @@
                 
                 // Show status
                 if (isNew) {
-                    codeStatus.textContent = '✅ New code generated and saved to database';
+                    codeStatus.textContent = 'New code generated and saved to database';
                     codeStatus.style.color = '#155724';
                     console.log('🆕 Showing new code message');
                 } else {
-                    codeStatus.textContent = '✅ Existing code retrieved from database';
+                    codeStatus.textContent = 'Existing code retrieved from database';
                     codeStatus.style.color = '#0c5460';
                     console.log('📚 Showing existing code message');
                 }
@@ -434,7 +434,7 @@
                 // Show user info
                 const createdDate = new Date(codeData.created_at).toLocaleString();
                 userInfo.innerHTML = `
-                    <h3>👤 User Information</h3>
+                    <h3>User Information</h3>
                     <p><strong>Email:</strong> ${codeData.created_by}</p>
                     <p><strong>Code Generated:</strong> ${createdDate}</p>
                     <p><strong>Status:</strong> ${codeData.used ? 'Used' : 'Active'}</p>
