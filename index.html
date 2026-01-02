@@ -14,7 +14,7 @@
         }
         
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #818181 0%, #818181 50%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -122,7 +122,7 @@
         
         .spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border-top: 3px solid #818181;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -223,7 +223,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 Google Authentication</h1>
+            <h1>GAuth</h1>
             <p>Sign in to generate your verification code</p>
         </div>
         
@@ -266,13 +266,13 @@
                 <strong>How it works:</strong><br>
                 1. Sign in with Google<br>
                 2. Get your unique 12-digit code<br>
-                3. Code is saved to Supabase database<br>
+                3. Code is saved to database<br>
                 4. Use this code in other apps for verification
             </div>
         </div>
         
         <footer>
-            <p>Code generation system | Connected to Supabase</p>
+            <p>Code generation system | Connected to database</p>
         </footer>
     </div>
 
