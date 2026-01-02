@@ -464,10 +464,10 @@
                 const sessionTimeout = setTimeout(() => {
                     console.error('⏰ Session handling timeout');
                     hideLoading();
-                    showMessage('Session check is taking too long. Please try again.', 'error');
+                    showMessage('Auto-reloaded', 'success');
                     loginSection.style.display = 'block';
                     codeSection.style.display = 'none';
-                }, 100); // 3 seconds timeout
+                }, 2000); // 3 seconds timeout
                 
                 try {
                     // Check for existing code
