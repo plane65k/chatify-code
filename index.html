@@ -215,6 +215,25 @@
             margin-top: 20px;
         }
         
+        
+        .terms-link {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 14px;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.terms-link:hover {
+    text-decoration: underline #667eea;
+}
+
+        
+        
+        
+        
+        
         .logout-btn:hover {
             background: #c82333;
         }
@@ -222,10 +241,18 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>GAuth</h1>
-            <p>Sign in to generate your verification code</p>
-        </div>
+       <div class="header">
+    <h1>GAuth</h1>
+    <p>Sign in to generate your verification code</p>
+    <a 
+        href="https://docs.google.com/document/d/1gjhBHDjsb39YT9f4ZUbY6gjGacAT4YjKjmJwSDIiaQE/edit?tab=t.0"
+        target="_blank"
+        class="terms-link"
+    >
+        Terms & Conditions
+    </a>
+</div>
+
         
         <div class="content">
             <div class="message" id="message"></div>
@@ -264,10 +291,12 @@
             
             <div class="info-box">
                 <strong>How it works:</strong><br>
-                1. Sign in with Google<br>
-                2. Get your unique 12-digit code<br>
-                3. Code is saved to database<br>
-                4. Use this code in other apps for verification
+                1. Agree to the Terms & Conditions (this is done by clicking "sign in with google") <br>
+                2. Sign in with Google<br>
+                3. Get your unique 12-digit code<br>
+                4. Code is saved to database<br>
+                5. Use this code in other apps for verification
+                
             </div>
         </div>
         
