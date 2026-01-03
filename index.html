@@ -305,404 +305,410 @@
         </footer>
     </div>
 
-   <script>
-    (function() {
-        // Your Supabase configuration
-        const SUPABASE_URL = 'https://qsplvexeqsbrsgrfczog.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzcGx2ZXhlcXNicnNncmZjem9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0Mzk5OTksImV4cCI6MjA3NzAxNTk5OX0.QJV9XLvzoIPr1rE4LK4XOEoOAu-YCTQ-wkatNcqwlwE';
-        
-        // Initialize Supabase
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        // DOM Elements
-        const googleSignInBtn = document.getElementById('googleSignInBtn');
-        const signOutBtn = document.getElementById('signOutBtn');
-        const message = document.getElementById('message');
-        const loading = document.getElementById('loading');
-        const loadingText = document.getElementById('loadingText');
-        const codeDisplay = document.getElementById('codeDisplay');
-        const generatedCode = document.getElementById('generatedCode');
-        const copyBtn = document.getElementById('copyBtn');
-        const userInfo = document.getElementById('userInfo');
-        const loginSection = document.getElementById('loginSection');
-        const codeSection = document.getElementById('codeSection');
-        const codeStatus = document.getElementById('codeStatus');
-        
-        // Track if we've already processed the user to prevent duplicates
-        let hasProcessedUser = false;
-        let currentUserEmail = null;
-        
-        // Show message
-        function showMessage(text, type) {
-            message.textContent = text;
-            message.className = 'message ' + type;
-            message.style.display = 'block';
+    <script>
+        (function() {
+            // Your Supabase configuration
+            const SUPABASE_URL = 'https://qsplvexeqsbrsgrfczog.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzcGx2ZXhlcXNicnNncmZjem9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0Mzk5OTksImV4cCI6MjA3NzAxNTk5OX0.QJV9XLvzoIPr1rE4LK4XOEoOAu-YCTQ-wkatNcqwlwE';
             
-            setTimeout(() => {
-                message.style.display = 'none';
-            }, 5000);
-        }
-        
-        // Show/hide loading
-        function showLoading(text = 'Processing...') {
-            loadingText.textContent = text;
-            loading.style.display = 'block';
-            googleSignInBtn.disabled = true;
-        }
-        
-        function hideLoading() {
-            loading.style.display = 'none';
-            googleSignInBtn.disabled = false;
-        }
-        
-        // Generate 12-digit random code
-        function generate12DigitCode() {
-            const min = 100000000000;
-            const max = 999999999999;
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
-        
-        // Check if user already has a code in the database
-        async function getUserExistingCode(userEmail) {
-            try {
-                console.log('🔍 Checking database for code for:', userEmail);
-                
-                const { data, error } = await supabaseClient
-                    .from('codes')
-                    .select('*')
-                    .eq('created_by', userEmail)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-                
-                if (error) {
-                    console.error('❌ Database query error:', error);
-                    return null;
-                }
-                
-                console.log('✅ Query result:', data);
-                
-                if (data && data.length > 0) {
-                    const codeData = data[0];
-                    console.log('📋 Found existing code:', codeData.code);
-                    return codeData;
-                }
-                
-                console.log('❌ No existing code found');
-                return null;
-                
-            } catch (error) {
-                console.error('❌ Error checking for existing code:', error.message);
-                return null;
-            }
-        }
-        
-        // Save new code to Supabase "codes" table
-        async function saveNewCodeToDatabase(code, userEmail) {
-            try {
-                console.log('💾 Saving new code to database:', code);
-                
-                const { data, error } = await supabaseClient
-                    .from('codes')
-                    .insert([
-                        {
-                            code: code.toString(),
-                            created_by: userEmail,
-                            created_at: new Date().toISOString(),
-                            used: false,
-                            used_by: null,
-                            used_at: null
-                        }
-                    ])
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('❌ Error saving code:', error);
-                    throw error;
-                }
-                
-                console.log('✅ New code saved successfully:', data);
-                return data;
-                
-            } catch (error) {
-                console.error('❌ Error in saveNewCodeToDatabase:', error);
-                throw error;
-            }
-        }
-        
-        // Display code to user
-        function displayCodeToUser(codeData, isNew = false) {
-            console.log('🖥️ Displaying code to user:', codeData);
+            // Initialize Supabase
+            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             
-            // Ensure codeData.code is a string
-            const codeString = codeData.code.toString();
+            // DOM Elements
+            const googleSignInBtn = document.getElementById('googleSignInBtn');
+            const signOutBtn = document.getElementById('signOutBtn');
+            const message = document.getElementById('message');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            const codeDisplay = document.getElementById('codeDisplay');
+            const generatedCode = document.getElementById('generatedCode');
+            const copyBtn = document.getElementById('copyBtn');
+            const userInfo = document.getElementById('userInfo');
+            const loginSection = document.getElementById('loginSection');
+            const codeSection = document.getElementById('codeSection');
+            const codeStatus = document.getElementById('codeStatus');
             
-            // Set the code in the UI
-            generatedCode.textContent = codeString;
-            codeDisplay.style.display = 'block';
-            
-            // Show status
-            if (isNew) {
-                codeStatus.textContent = 'New code generated and saved to database';
-                codeStatus.style.color = '#155724';
-                console.log('🆕 Showing new code message');
-            } else {
-                codeStatus.textContent = 'Existing code retrieved from database';
-                codeStatus.style.color = '#0c5460';
-                console.log('📚 Showing existing code message');
-            }
-            
-            // Show user info
-            const createdDate = new Date(codeData.created_at).toLocaleString();
-            userInfo.innerHTML = `
-                <h3>User Information</h3>
-                <p><strong>Email:</strong> ${codeData.created_by}</p>
-                <p><strong>Code Generated:</strong> ${createdDate}</p>
-                <p><strong>Status:</strong> ${codeData.used ? 'Used' : 'Active'}</p>
-            `;
-            userInfo.style.display = 'block';
-            
-            // Show code section, hide login
-            loginSection.style.display = 'none';
-            codeSection.style.display = 'block';
-            
-            console.log('✅ UI updated successfully');
-        }
-        
-        // Handle user session and code - UPDATED WITH DUPLICATION PREVENTION
-        async function handleUserSession(user) {
-            if (!user || !user.email) {
-                console.error('❌ No user or email provided');
-                showMessage('No user information found. Please sign in again.', 'error');
-                hideLoading();
-                return;
-            }
-            
-            // Prevent processing the same user multiple times
-            if (hasProcessedUser && currentUserEmail === user.email) {
-                console.log('⚠️ User already processed, skipping duplicate handling');
-                return;
-            }
-            
-            console.log('👤 Handling session for user:', user.email);
-            hasProcessedUser = true;
-            currentUserEmail = user.email;
-            
-            showLoading('Checking your account...');
-            
-            try {
-                // Check for existing code
-                console.log('🔍 Looking for existing code...');
-                const existingCode = await getUserExistingCode(user.email);
-                
-                if (existingCode) {
-                    // User has existing code - show it
-                    console.log('📋 Found existing code, displaying...');
-                    displayCodeToUser(existingCode, false);
-                    showMessage('Welcome back! Showing your existing code.', 'success');
-                    hideLoading();
-                } else {
-                    // No existing code - generate new one
-                    console.log('❌ No existing code found, generating new one...');
-                    showLoading('Generating new verification code...');
-                    const newCode = generate12DigitCode();
-                    console.log('🎲 Generated new code:', newCode);
-                    
-                    const savedCode = await saveNewCodeToDatabase(newCode, user.email);
-                    
-                    if (savedCode) {
-                        console.log('✅ New code saved, displaying...');
-                        displayCodeToUser(savedCode, true);
-                        showMessage('New code generated successfully!', 'success');
-                        hideLoading();
-                    } else {
-                        throw new Error('Failed to save new code');
-                    }
-                }
-                
-            } catch (error) {
-                console.error('❌ Error in handleUserSession:', error);
-                hasProcessedUser = false;
-                currentUserEmail = null;
-                showMessage('Error: ' + error.message, 'error');
-                hideLoading();
-                
-                // On error, show login button
-                loginSection.style.display = 'block';
-                codeSection.style.display = 'none';
-            }
-        }
-        
-        // Sign in with Google
-        async function signInWithGoogle() {
-            showLoading('Redirecting to Google...');
-            
-            try {
-                const currentUrl = window.location.origin + window.location.pathname;
-                console.log('🔗 Redirect URL:', currentUrl);
-                
-                const { error } = await supabaseClient.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: {
-                        redirectTo: currentUrl
-                    }
-                });
-                
-                if (error) throw error;
-                
-            } catch (error) {
-                hideLoading();
-                showMessage('Error signing in: ' + error.message, 'error');
-                console.error('❌ Sign in error:', error);
-            }
-        }
-        
-        // Sign out
-        async function signOut() {
-            showLoading('Signing out...');
-            
-            try {
-                const { error } = await supabaseClient.auth.signOut();
-                
-                if (error) throw error;
-                
-                // Reset UI and tracking variables
-                hasProcessedUser = false;
-                currentUserEmail = null;
-                loginSection.style.display = 'block';
-                codeSection.style.display = 'none';
-                showMessage('Signed out successfully', 'success');
-                
-            } catch (error) {
-                showMessage('Error signing out: ' + error.message, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-        
-        // Copy code to clipboard
-        copyBtn.addEventListener('click', function() {
-            const code = generatedCode.textContent;
-            navigator.clipboard.writeText(code).then(() => {
-                const originalText = copyBtn.textContent;
-                copyBtn.textContent = 'Copied!';
-                copyBtn.style.background = '#28a745';
+            // Show message
+            function showMessage(text, type) {
+                message.textContent = text;
+                message.className = 'message ' + type;
+                message.style.display = 'block';
                 
                 setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                    copyBtn.style.background = '#667eea';
-                }, 2000);
-            });
-        });
-        
-        // Handle OAuth callback from URL
-        async function handleOAuthCallback() {
-            console.log('🔄 Checking for OAuth callback...');
+                    message.style.display = 'none';
+                }, 5000);
+            }
             
-            if (window.location.hash && window.location.hash.includes('access_token')) {
-                console.log('✅ OAuth callback detected in URL');
-                showLoading('Completing authentication...');
-                
+            // Show/hide loading
+            function showLoading(text = 'Processing...') {
+                loadingText.textContent = text;
+                loading.style.display = 'block';
+                googleSignInBtn.disabled = true;
+            }
+            
+            function hideLoading() {
+                loading.style.display = 'none';
+                googleSignInBtn.disabled = false;
+            }
+            
+            // Generate 12-digit random code
+            function generate12DigitCode() {
+                const min = 100000000000;
+                const max = 999999999999;
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+            
+            // Check if user already has a code in the database - FIXED VERSION
+            async function getUserExistingCode(userEmail) {
                 try {
-                    // Supabase will automatically handle the hash fragment
-                    const { data, error } = await supabaseClient.auth.getSession();
+                    console.log('🔍 Checking database for code for:', userEmail);
+                    
+                    // 1-second timeout
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('Database query timeout (1s)')), 1000);
+                    });
+                    
+                    // Direct query without Promise.race for simplicity
+                    const { data, error } = await supabaseClient
+                        .from('codes')
+                        .select('*')
+                        .eq('created_by', userEmail)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
                     
                     if (error) {
-                        console.error('❌ Session error during callback:', error);
+                        console.error('❌ Database query error:', error);
+                        return null;
+                    }
+                    
+                    console.log('✅ Query result:', data);
+                    
+                    if (data && data.length > 0) {
+                        const codeData = data[0];
+                        console.log('📋 Found existing code:', codeData.code);
+                        console.log('📊 Code data:', codeData);
+                        return codeData;
+                    }
+                    
+                    console.log('❌ No existing code found');
+                    return null;
+                    
+                } catch (error) {
+                    console.error('❌ Error checking for existing code:', error.message);
+                    return null;
+                }
+            }
+            
+            // Save new code to Supabase "codes" table
+            async function saveNewCodeToDatabase(code, userEmail) {
+                try {
+                    console.log('💾 Saving new code to database:', code);
+                    
+                    const { data, error } = await supabaseClient
+                        .from('codes')
+                        .insert([
+                            {
+                                code: code.toString(),
+                                created_by: userEmail,
+                                created_at: new Date().toISOString(),
+                                used: false,
+                                used_by: null,
+                                used_at: null
+                            }
+                        ])
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        console.error('❌ Error saving code:', error);
                         throw error;
                     }
                     
-                    if (data && data.session) {
-                        console.log('👤 User authenticated via callback:', data.session.user.email);
-                        // Clean URL first to prevent multiple triggers
-                        window.history.replaceState(null, '', window.location.pathname);
-                    }
+                    console.log('✅ New code saved successfully:', data);
+                    return data;
                     
                 } catch (error) {
-                    console.error('❌ OAuth callback error:', error);
-                    showMessage('Authentication error: ' + error.message, 'error');
-                    hideLoading();
+                    console.error('❌ Error in saveNewCodeToDatabase:', error);
+                    throw error;
                 }
             }
-        }
-        
-        // Check for existing session on page load
-        async function checkExistingSession() {
-            try {
-                console.log('🔍 Checking for existing session...');
+            
+            // Display code to user - FIXED VERSION
+            function displayCodeToUser(codeData, isNew = false) {
+                console.log('🖥️ Displaying code to user:', codeData);
                 
-                const { data, error } = await supabaseClient.auth.getSession();
+                // Ensure codeData.code is a string
+                const codeString = codeData.code.toString();
+                console.log('📝 Code string:', codeString);
                 
-                if (error) {
-                    console.error('❌ Session check error:', error);
+                // Format code with dashes: XXX-XXX-XXX-XXX
+                const formattedCode = codeString
+                console.log('🎨 Formatted code:', formattedCode);
+                
+                // Set the code in the UI
+                generatedCode.textContent = formattedCode;
+                codeDisplay.style.display = 'block';
+                
+                // Show status
+                if (isNew) {
+                    codeStatus.textContent = 'New code generated and saved to database';
+                    codeStatus.style.color = '#155724';
+                    console.log('🆕 Showing new code message');
+                } else {
+                    codeStatus.textContent = 'Existing code retrieved from database';
+                    codeStatus.style.color = '#0c5460';
+                    console.log('📚 Showing existing code message');
+                }
+                
+                // Show user info
+                const createdDate = new Date(codeData.created_at).toLocaleString();
+                userInfo.innerHTML = `
+                    <h3>User Information</h3>
+                    <p><strong>Email:</strong> ${codeData.created_by}</p>
+                    <p><strong>Code Generated:</strong> ${createdDate}</p>
+                    <p><strong>Status:</strong> ${codeData.used ? 'Used' : 'Active'}</p>
+                `;
+                userInfo.style.display = 'block';
+                
+                // Show code section, hide login
+                loginSection.style.display = 'none';
+                codeSection.style.display = 'block';
+                
+                console.log('✅ UI updated successfully');
+            }
+            
+            // Handle user session and code - SIMPLIFIED AND FIXED
+            async function handleUserSession(user) {
+                if (!user || !user.email) {
+                    console.error('❌ No user or email provided');
+                    showMessage('No user information found. Please sign in again.', 'error');
                     hideLoading();
-                    loginSection.style.display = 'block';
-                    codeSection.style.display = 'none';
                     return;
                 }
                 
-                if (data && data.session) {
-                    console.log('✅ Found existing session for user:', data.session.user.email);
-                    await handleUserSession(data.session.user);
-                } else {
-                    console.log('❌ No existing session found');
+                showLoading('Checking your account...');
+                console.log('👤 Handling session for user:', user.email);
+                
+                // Set a timeout to prevent hanging
+                const sessionTimeout = setTimeout(() => {
+                    console.error('⏰ Session handling timeout');
+                    hideLoading();
+                    showMessage('Auto-reloaded', 'success');
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
+                }, 2000); // 3 seconds timeout
+                
+                try {
+                    // Check for existing code
+                    console.log('🔍 Looking for existing code...');
+                    const existingCode = await getUserExistingCode(user.email);
+                    
+                    clearTimeout(sessionTimeout);
+                    
+                    if (existingCode) {
+                        // User has existing code - show it
+                        console.log('📋 Found existing code, displaying...');
+                        displayCodeToUser(existingCode, false);
+                        showMessage('Welcome back! Showing your existing code.', 'success');
+                        hideLoading();
+                    } else {
+                        // No existing code - generate new one
+                        console.log('❌ No existing code found, generating new one...');
+                        showLoading('Generating new verification code...');
+                        const newCode = generate12DigitCode();
+                        console.log('🎲 Generated new code:', newCode);
+                        
+                        const savedCode = await saveNewCodeToDatabase(newCode, user.email);
+                        
+                        if (savedCode) {
+                            console.log('✅ New code saved, displaying...');
+                            displayCodeToUser(savedCode, true);
+                            showMessage('New code generated successfully!', 'success');
+                            hideLoading();
+                        } else {
+                            throw new Error('Failed to save new code');
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error in handleUserSession:', error);
+                    clearTimeout(sessionTimeout);
+                    
+                    showMessage('Error: ' + error.message, 'error');
+                    hideLoading();
+                    
+                    // On error, show login button
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
+                }
+            }
+            
+            // Sign in with Google
+            async function signInWithGoogle() {
+                showLoading('Redirecting to Google...');
+                
+                try {
+                    const currentUrl = window.location.origin + window.location.pathname;
+                    console.log('🔗 Redirect URL:', currentUrl);
+                    
+                    const { error } = await supabaseClient.auth.signInWithOAuth({
+                        provider: 'google',
+                        options: {
+                            redirectTo: currentUrl
+                        }
+                    });
+                    
+                    if (error) throw error;
+                    
+                } catch (error) {
+                    hideLoading();
+                    showMessage('Error signing in: ' + error.message, 'error');
+                    console.error('❌ Sign in error:', error);
+                }
+            }
+            
+            // Sign out
+            async function signOut() {
+                showLoading('Signing out...');
+                
+                try {
+                    const { error } = await supabaseClient.auth.signOut();
+                    
+                    if (error) throw error;
+                    
+                    // Reset UI
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
+                    showMessage('Signed out successfully', 'success');
+                    
+                } catch (error) {
+                    showMessage('Error signing out: ' + error.message, 'error');
+                } finally {
+                    hideLoading();
+                }
+            }
+            
+            // Copy code to clipboard
+            copyBtn.addEventListener('click', function() {
+                const code = generatedCode.textContent.replace(/-/g, '');
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = 'Copied!';
+                    copyBtn.style.background = '#28a745';
+                    
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                        copyBtn.style.background = '#667eea';
+                    }, 2000);
+                });
+            });
+            
+            // Handle OAuth callback from URL
+            async function handleOAuthCallback() {
+                console.log('🔄 Checking for OAuth callback...');
+                
+                if (window.location.hash && window.location.hash.includes('access_token')) {
+                    console.log('✅ OAuth callback detected in URL');
+                    showLoading('Completing authentication...');
+                    
+                    try {
+                        // Supabase will automatically handle the hash fragment
+                        const { data, error } = await supabaseClient.auth.getSession();
+                        
+                        if (error) {
+                            console.error('❌ Session error during callback:', error);
+                            throw error;
+                        }
+                        
+                        if (data && data.session) {
+                            console.log('👤 User authenticated via callback:', data.session.user.email);
+                            await handleUserSession(data.session.user);
+                            
+                            // Clean URL
+                            window.history.replaceState(null, '', window.location.pathname);
+                        }
+                        
+                    } catch (error) {
+                        console.error('❌ OAuth callback error:', error);
+                        showMessage('Authentication error: ' + error.message, 'error');
+                        hideLoading();
+                    }
+                }
+            }
+            
+            // Check for existing session on page load
+            async function checkExistingSession() {
+                try {
+                    console.log('🔍 Checking for existing session...');
+                    
+                    const { data, error } = await supabaseClient.auth.getSession();
+                    
+                    if (error) {
+                        console.error('❌ Session check error:', error);
+                        hideLoading();
+                        loginSection.style.display = 'block';
+                        codeSection.style.display = 'none';
+                        return;
+                    }
+                    
+                    if (data && data.session) {
+                        console.log('✅ Found existing session for user:', data.session.user.email);
+                        await handleUserSession(data.session.user);
+                    } else {
+                        console.log('❌ No existing session found');
+                        hideLoading();
+                        loginSection.style.display = 'block';
+                        codeSection.style.display = 'none';
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error checking session:', error);
                     hideLoading();
                     loginSection.style.display = 'block';
                     codeSection.style.display = 'none';
                 }
+            }
+            
+            // Listen for auth state changes
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                console.log('🔄 Auth state changed:', event);
                 
-            } catch (error) {
-                console.error('❌ Error checking session:', error);
-                hideLoading();
-                loginSection.style.display = 'block';
-                codeSection.style.display = 'none';
-            }
-        }
-        
-        // Listen for auth state changes - UPDATED TO PREVENT DUPLICATE CALLS
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            console.log('🔄 Auth state changed:', event);
+                if (event === 'SIGNED_IN' && session) {
+                    console.log('✅ User signed in via state change');
+                    await handleUserSession(session.user);
+                } else if (event === 'SIGNED_OUT') {
+                    console.log('👋 User signed out');
+                    hideLoading();
+                    loginSection.style.display = 'block';
+                    codeSection.style.display = 'none';
+                } else if (event === 'INITIAL_SESSION') {
+                    console.log('🚀 Initial session loaded');
+                }
+            });
             
-            if (event === 'SIGNED_IN' && session) {
-                // Only process SIGNED_IN events that come from OAuth redirects
-                // (not from initial session restoration)
-                console.log('✅ User signed in via state change');
-                await handleUserSession(session.user);
-            } else if (event === 'SIGNED_OUT') {
-                console.log('👋 User signed out');
-                hasProcessedUser = false;
-                currentUserEmail = null;
-                hideLoading();
-                loginSection.style.display = 'block';
-                codeSection.style.display = 'none';
-            } else if (event === 'INITIAL_SESSION') {
-                console.log('🚀 Initial session loaded');
-                // Do nothing here - let checkExistingSession() handle it
-            }
-        });
-        
-        // Event listeners
-        googleSignInBtn.addEventListener('click', signInWithGoogle);
-        signOutBtn.addEventListener('click', signOut);
-        
-        // Initialize on page load - SIMPLIFIED TO PREVENT DUPLICATE CALLS
-        window.addEventListener('DOMContentLoaded', async () => {
-            console.log('🚀 === Page Loaded ===');
+            // Event listeners
+            googleSignInBtn.addEventListener('click', signInWithGoogle);
+            signOutBtn.addEventListener('click', signOut);
             
-            // Show loading initially
-            showLoading('Initializing...');
+            // Initialize on page load
+            window.addEventListener('DOMContentLoaded', async () => {
+                console.log('🚀 === Page Loaded ===');
+                
+                // Show loading initially
+                showLoading('Initializing...');
+                
+                // First handle OAuth callback if present
+                await handleOAuthCallback();
+                
+                // Then check for existing session
+                await checkExistingSession();
+                
+                console.log('✅ === Initialization Complete ===');
+            });
             
-            // First handle OAuth callback if present (this only cleans URL)
-            await handleOAuthCallback();
-            
-            // Then check for existing session (this handles the actual user)
-            await checkExistingSession();
-            
-            console.log('✅ === Initialization Complete ===');
-        });
-        
-    })();
-</script>
+        })();
+    </script>
 </body>
 </html>
+
 
