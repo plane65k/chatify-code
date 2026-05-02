@@ -3,318 +3,359 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Sign-In with Code Generation</title>
+    <title>Chatify | Secure Authentication</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
+        :root {
+            --primary-green: #2D6A4F;
+            --light-green: #D8F3DC;
+            --accent-green: #40916C;
+            --bg-gradient: linear-gradient(135deg, #f0f7f1 0%, #d4e2d3 100%);
+            --apple-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            --glass: rgba(255, 255, 255, 0.85);
+            /* Standard Apple Bezier Curve */
+            --curve: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
         }
-        
+
         body {
-            background: linear-gradient(125deg, #d4e2d3 0%, #d4e2d3 50%);
+            background: var(--bg-gradient);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            color: #1d1d1f;
+            overflow-x: hidden;
         }
-        
+
+        /* Satisfying Entrance Animations */
+        @keyframes containerEntrance {
+            from { opacity: 0; transform: scale(0.95) translateY(30px); filter: blur(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+        }
+
+        @keyframes textArrival {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes logoGlow {
+            0% { filter: drop-shadow(0 0 0px rgba(45, 106, 79, 0)); }
+            50% { filter: drop-shadow(0 0 15px rgba(45, 106, 79, 0.2)); }
+            100% { filter: drop-shadow(0 0 0px rgba(45, 106, 79, 0)); }
+        }
+
+        /* Redirect Expansion Animation */
+        .expanding {
+            transform: scale(1.05);
+            opacity: 0.5;
+            filter: blur(4px);
+            transition: all 0.8s var(--curve);
+        }
+
         .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: var(--glass);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 32px;
+            box-shadow: var(--apple-shadow);
             width: 100%;
-            max-width: 500px;
+            max-width: 550px; /* Increased width for bigger verification window */
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            animation: containerEntrance 0.8s var(--curve) forwards;
+            transition: all 0.5s var(--curve);
         }
-        
+
         .header {
-            background: #f8f9fa;
-            padding: 40px;
+            padding: 50px 40px 20px;
             text-align: center;
-            border-bottom: 1px solid #e9ecef;
         }
-        
+
+        .logo {
+            width: 100px; /* Larger logo */
+            height: auto;
+            margin-bottom: 24px;
+            animation: logoGlow 4s ease-in-out infinite;
+            transition: transform 0.4s var(--curve);
+        }
+
         .header h1 {
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 10px;
+            font-size: 32px; /* Bigger font */
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            color: var(--primary-green);
+            margin-bottom: 12px;
+            animation: textArrival 0.8s var(--curve) 0.1s both;
         }
-        
+
         .header p {
-            color: #666;
-            font-size: 16px;
+            color: #6e6e73;
+            font-size: 17px;
+            line-height: 1.4;
+            animation: textArrival 0.8s var(--curve) 0.2s both;
         }
-        
+
         .content {
-            padding: 40px;
+            padding: 0 40px 50px;
         }
-        
+
+        .terms-link {
+            display: inline-block;
+            margin-top: 15px;
+            font-size: 14px;
+            color: var(--accent-green);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s var(--curve);
+            animation: textArrival 0.8s var(--curve) 0.3s both;
+        }
+
+        .terms-link:hover {
+            opacity: 0.7;
+            transform: translateY(-1px);
+        }
+
+        /* Satisfying Buttons */
         .btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 12px;
             width: 100%;
-            padding: 15px 20px;
+            padding: 18px;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 18px;
+            font-size: 17px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin-bottom: 20px;
+            transition: all 0.4s var(--curve);
+            margin-bottom: 16px;
         }
-        
+
         .btn-google {
-            background: white;
-            color: #333;
-            border: 2px solid #ddd;
+            background: #ffffff;
+            color: #1d1d1f;
+            border: 1px solid #d2d2d7;
+            animation: textArrival 0.8s var(--curve) 0.4s both;
         }
-        
+
         .btn-google:hover {
-            background: #f8f9fa;
-            border-color: #ccc;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: #f5f5f7;
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
         }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        
-        .google-icon {
-            width: 20px;
-            height: 20px;
-        }
-        
-        .message {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            display: none;
-        }
-        
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-            display: block;
-        }
-        
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-            display: block;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 20px;
-            display: none;
-        }
-        
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #818181;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .code-display {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 30px;
-            text-align: center;
-            margin: 20px 0;
-            display: none;
-        }
-        
-        .code-display h3 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 18px;
-        }
-        
-        .code-value {
-            font-size: 32px;
-            font-weight: bold;
-            letter-spacing: 5px;
-            color: #667eea;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            border: 2px dashed #667eea;
-            margin: 20px 0;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .copy-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        
-        .copy-btn:hover {
-            background: #5a67d8;
-        }
-        
-        .user-info {
-            background: #e8f4fd;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-            display: none;
-        }
-        
-        .user-info h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        
-        footer {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-            font-size: 14px;
-            border-top: 1px solid #e9ecef;
-        }
-        
-        .info-box {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-            font-size: 14px;
-            color: #856404;
-        }
-        
+
         .logout-btn {
+            background: rgba(220, 53, 69, 0.08);
+            color: #dc3545;
+            margin-top: 25px;
+        }
+
+        .logout-btn:hover {
             background: #dc3545;
             color: white;
-            margin-top: 20px;
+            transform: translateY(-2px);
         }
-        
-        
-        .terms-link {
-    display: inline-block;
-    margin-top: 12px;
-    font-size: 14px;
-    color: #667eea;
-    text-decoration: none;
-    font-weight: 500;
-}
 
-.terms-link:hover {
-    text-decoration: underline #667eea;
-}
+        /* Verification Display - Larger and More Prominent */
+        .code-display {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            margin: 25px 0;
+            border: 1px solid #e5e5e7;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.02);
+            display: none;
+            animation: textArrival 0.6s var(--curve);
+        }
 
-        
-        
-        
-        
-        
-        .logout-btn:hover {
-            background: #c82333;
+        .code-value {
+            font-size: 42px; /* Bigger code display */
+            font-weight: 800;
+            letter-spacing: 6px;
+            color: var(--primary-green);
+            background: #f2fcf4;
+            padding: 30px 15px;
+            border-radius: 20px;
+            margin: 20px 0;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            border: 2px solid var(--light-green);
+        }
+
+        .copy-btn {
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s var(--curve);
+        }
+
+        .copy-btn:hover {
+            transform: scale(1.05);
+            background: var(--accent-green);
+        }
+
+        /* Message/Loading UI */
+        .message {
+            padding: 15px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+            font-size: 15px;
+            text-align: center;
+            display: none;
+            animation: textArrival 0.4s var(--curve);
+        }
+
+        .message.success { background: #eafaf1; color: #1e7e34; }
+        .message.error { background: #fdf2f2; color: #d32f2f; }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0,0,0,0.05);
+            border-top: 4px solid var(--primary-green);
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            animation: spin 1s var(--curve) infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .info-box {
+            background: rgba(45, 106, 79, 0.04);
+            border-radius: 20px;
+            padding: 25px;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #6e6e73;
+            line-height: 1.6;
+            border: 1px solid rgba(45, 106, 79, 0.08);
+            animation: textArrival 0.8s var(--curve) 0.5s both;
+        }
+
+        .info-box strong { color: var(--primary-green); display: block; margin-bottom: 10px; font-size: 16px; }
+
+        .user-info {
+            font-size: 14px;
+            background: #f5f5f7;
+            padding: 20px;
+            border-radius: 16px;
+            margin-top: 20px;
+            display: none;
+            line-height: 1.8;
+        }
+
+        footer {
+            text-align: center;
+            padding: 25px;
+            font-size: 12px;
+            color: #86868b;
+            background: rgba(255,255,255,0.4);
+            border-top: 1px solid rgba(0,0,0,0.03);
+        }
+
+        .secure-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 20px;
+            color: #1e7e34;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            animation: textArrival 0.8s var(--curve) both;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-       <div class="header">
-    <h1>Chatify Authentication</h1>
-    <p>Sign in to generate your verification code</p>
-    <a 
-        href="https://docs.google.com/document/d/1gjhBHDjsb39YT9f4ZUbY6gjGacAT4YjKjmJwSDIiaQE/edit?tab=t.0"
-        target="_blank"
-        class="terms-link"
-    >
-        Terms & Conditions
-        
-    </a>
-</div>
+    <div class="container" id="mainContainer">
+        <div class="header">
+            <img src="https://res.cloudinary.com/dceqg5cky/image/upload/SDG_log-removebg-preview_bslq5d.png" alt="Chatify Logo" class="logo">
+            <div class="secure-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                ENCRYPTED CONNECTION
+            </div>
+            <h1>Chatify Authentication</h1>
+            <p>Sign in to generate your verification code</p>
+            <a href="https://docs.google.com/document/d/1gjhBHDjsb39YT9f4ZUbY6gjGacAT4YjKjmJwSDIiaQE/edit?tab=t.0" target="_blank" class="terms-link">Terms & Conditions</a>
+        </div>
 
-        
         <div class="content">
             <div class="message" id="message"></div>
             
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <p id="loadingText">Processing authentication...</p>
+                <p id="loadingText" style="color: #6e6e73;">Preparing secure session...</p>
             </div>
             
             <div id="loginSection">
                 <button class="btn btn-google" id="googleSignInBtn">
-                    <svg class="google-icon" viewBox="0 0 24 24">
+                    <svg style="width:20px;height:20px" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                     </svg>
-                    Authenticate with Google
+                    Continue with Google
                 </button>
             </div>
             
             <div id="codeSection" style="display: none;">
                 <div class="code-display" id="codeDisplay">
-                    <h3>✅ Your Verification Code</h3>
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px;">✅ Your Verification Code</h3>
                     <div class="code-value" id="generatedCode"></div>
                     <button class="copy-btn" id="copyBtn">Copy Code</button>
-                    <p style="margin-top: 15px; color: #666; font-size: 14px;" id="codeStatus">
+                    <p style="margin-top: 20px; color: #86868b; font-size: 13px;" id="codeStatus">
                         This 12-digit code has been saved to the database.
                     </p>
                 </div>
                 
                 <div class="user-info" id="userInfo"></div>
-                
                 <button class="btn logout-btn" id="signOutBtn">Sign Out</button>
             </div>
             
             <div class="info-box">
-                <strong>How it works:</strong><br>
-                1. Agree to the Terms & Conditions (this is done by clicking "sign in with google") <br>
+                <strong>How it works:</strong>
+                1. Agree to the Terms & Conditions (this is done by clicking "Continue with Google") <br>
                 2. Sign in with Google<br>
                 3. Get your unique 12-digit code<br>
-                4. Use this code in Chatify (input where it says "Verfication Code"
-                
+                4. Use this code in Chatify (input where it says "Verification Code")
             </div>
         </div>
         
         <footer>
-            <p>Code generation system | Connected to database | made with open-source code avalible on github</p>
+            <p>Code generation system | Connected to database | made with open-source code available on github</p>
         </footer>
     </div>
 
     <script>
         (function() {
-            // Your Supabase configuration
+            // AUTH & DB CONFIG
             const SUPABASE_URL = 'https://qsplvexeqsbrsgrfczog.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzcGx2ZXhlcXNicnNncmZjem9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0Mzk5OTksImV4cCI6MjA3NzAxNTk5OX0.QJV9XLvzoIPr1rE4LK4XOEoOAu-YCTQ-wkatNcqwlwE';
-            
-            // Initialize Supabase
             const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             
-            // DOM Elements
+            // DOM ELEMENTS
+            const mainContainer = document.getElementById('mainContainer');
             const googleSignInBtn = document.getElementById('googleSignInBtn');
             const signOutBtn = document.getElementById('signOutBtn');
             const message = document.getElementById('message');
@@ -328,18 +369,13 @@
             const codeSection = document.getElementById('codeSection');
             const codeStatus = document.getElementById('codeStatus');
             
-            // Show message
             function showMessage(text, type) {
                 message.textContent = text;
                 message.className = 'message ' + type;
                 message.style.display = 'block';
-                
-                setTimeout(() => {
-                    message.style.display = 'none';
-                }, 5000);
+                setTimeout(() => { message.style.display = 'none'; }, 5000);
             }
             
-            // Show/hide loading
             function showLoading(text = 'Processing...') {
                 loadingText.textContent = text;
                 loading.style.display = 'block';
@@ -351,116 +387,48 @@
                 googleSignInBtn.disabled = false;
             }
             
-            // Generate 12-digit random code
             function generate12DigitCode() {
                 const min = 100000000000;
                 const max = 999999999999;
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             }
             
-            // Check if user already has a code in the database - FIXED VERSION
             async function getUserExistingCode(userEmail) {
                 try {
-                    console.log('🔍 Checking database for code for:', userEmail);
-                    
-                    // 1-second timeout
-                    const timeoutPromise = new Promise((_, reject) => {
-                        setTimeout(() => reject(new Error('Database query timeout (1s)')), 1000);
-                    });
-                    
-                    // Direct query without Promise.race for simplicity
                     const { data, error } = await supabaseClient
                         .from('codes')
                         .select('*')
                         .eq('created_by', userEmail)
                         .order('created_at', { ascending: false })
                         .limit(1);
-                    
-                    if (error) {
-                        console.error('❌ Database query error:', error);
-                        return null;
-                    }
-                    
-                    console.log('✅ Query result:', data);
-                    
-                    if (data && data.length > 0) {
-                        const codeData = data[0];
-                        console.log('📋 Found existing code:', codeData.code);
-                        console.log('📊 Code data:', codeData);
-                        return codeData;
-                    }
-                    
-                    console.log('❌ No existing code found');
-                    return null;
-                    
-                } catch (error) {
-                    console.error('❌ Error checking for existing code:', error.message);
-                    return null;
-                }
+                    if (error) return null;
+                    return (data && data.length > 0) ? data[0] : null;
+                } catch (error) { return null; }
             }
             
-            // Save new code to Supabase "codes" table
             async function saveNewCodeToDatabase(code, userEmail) {
                 try {
-                    console.log('💾 Saving new code to database:', code);
-                    
                     const { data, error } = await supabaseClient
                         .from('codes')
-                        .insert([
-                            {
-                                code: code.toString(),
-                                created_by: userEmail,
-                                created_at: new Date().toISOString(),
-                                used: false,
-                                used_by: null,
-                                used_at: null
-                            }
-                        ])
-                        .select()
-                        .single();
-                    
-                    if (error) {
-                        console.error('❌ Error saving code:', error);
-                        throw error;
-                    }
-                    
-                    console.log('✅ New code saved successfully:', data);
+                        .insert([{
+                            code: code.toString(),
+                            created_by: userEmail,
+                            created_at: new Date().toISOString(),
+                            used: false,
+                            used_by: null,
+                            used_at: null
+                        }])
+                        .select().single();
                     return data;
-                    
-                } catch (error) {
-                    console.error('❌ Error in saveNewCodeToDatabase:', error);
-                    throw error;
-                }
+                } catch (error) { throw error; }
             }
             
-            // Display code to user - FIXED VERSION
             function displayCodeToUser(codeData, isNew = false) {
-                console.log('🖥️ Displaying code to user:', codeData);
-                
-                // Ensure codeData.code is a string
-                const codeString = codeData.code.toString();
-                console.log('📝 Code string:', codeString);
-                
-                // Format code with dashes: XXX-XXX-XXX-XXX
-                const formattedCode = codeString
-                console.log('🎨 Formatted code:', formattedCode);
-                
-                // Set the code in the UI
-                generatedCode.textContent = formattedCode;
+                generatedCode.textContent = codeData.code.toString();
                 codeDisplay.style.display = 'block';
+                codeStatus.textContent = isNew ? 'New code generated and saved to database' : 'Existing code retrieved from database';
+                codeStatus.style.color = isNew ? '#1e7e34' : '#86868b';
                 
-                // Show status
-                if (isNew) {
-                    codeStatus.textContent = 'New code generated and saved to database';
-                    codeStatus.style.color = '#155724';
-                    console.log('🆕 Showing new code message');
-                } else {
-                    codeStatus.textContent = 'Existing code retrieved from database';
-                    codeStatus.style.color = '#0c5460';
-                    console.log('📚 Showing existing code message');
-                }
-                
-                // Show user info
                 const createdDate = new Date(codeData.created_at).toLocaleString();
                 userInfo.innerHTML = `
                     <h3>User Information</h3>
@@ -469,245 +437,98 @@
                     <p><strong>Status:</strong> ${codeData.used ? 'Used' : 'Active'}</p>
                 `;
                 userInfo.style.display = 'block';
-                
-                // Show code section, hide login
                 loginSection.style.display = 'none';
                 codeSection.style.display = 'block';
-                
-                console.log('✅ UI updated successfully');
             }
             
-            // Handle user session and code - SIMPLIFIED AND FIXED
             async function handleUserSession(user) {
                 if (!user || !user.email) {
-                    console.error('❌ No user or email provided');
-                    showMessage('No user information found. Please sign in again.', 'error');
                     hideLoading();
                     return;
                 }
-                
-                showLoading('Checking your account...');
-                console.log('👤 Handling session for user:', user.email);
-                
-                // Set a timeout to prevent hanging
-                const sessionTimeout = setTimeout(() => {
-                    console.error('⏰ Session handling timeout');
-                    hideLoading();
-                    showMessage('Auto-reloaded', 'success');
-                    loginSection.style.display = 'block';
-                    codeSection.style.display = 'none';
-                }, 2000); // 3 seconds timeout
-                
+                showLoading('Verifying credentials...');
                 try {
-                    // Check for existing code
-                    console.log('🔍 Looking for existing code...');
                     const existingCode = await getUserExistingCode(user.email);
-                    
-                    clearTimeout(sessionTimeout);
-                    
                     if (existingCode) {
-                        // User has existing code - show it
-                        console.log('📋 Found existing code, displaying...');
                         displayCodeToUser(existingCode, false);
-                        showMessage('Welcome back! Showing your existing code.', 'success');
                         hideLoading();
                     } else {
-                        // No existing code - generate new one
-                        console.log('❌ No existing code found, generating new one...');
-                        showLoading('Generating new verification code...');
                         const newCode = generate12DigitCode();
-                        console.log('🎲 Generated new code:', newCode);
-                        
                         const savedCode = await saveNewCodeToDatabase(newCode, user.email);
-                        
                         if (savedCode) {
-                            console.log('✅ New code saved, displaying...');
                             displayCodeToUser(savedCode, true);
-                            showMessage('New code generated successfully!', 'success');
                             hideLoading();
-                        } else {
-                            throw new Error('Failed to save new code');
                         }
                     }
-                    
                 } catch (error) {
-                    console.error('❌ Error in handleUserSession:', error);
-                    clearTimeout(sessionTimeout);
-                    
                     showMessage('Error: ' + error.message, 'error');
                     hideLoading();
-                    
-                    // On error, show login button
-                    loginSection.style.display = 'block';
-                    codeSection.style.display = 'none';
                 }
             }
             
-            // Sign in with Google
             async function signInWithGoogle() {
-                showLoading('Redirecting to Google...');
+                // Expanding animation for satisfying transition
+                mainContainer.classList.add('expanding');
+                showLoading('Redirecting to secure login...');
                 
                 try {
                     const currentUrl = window.location.origin + window.location.pathname;
-                    console.log('🔗 Redirect URL:', currentUrl);
-                    
                     const { error } = await supabaseClient.auth.signInWithOAuth({
                         provider: 'google',
-                        options: {
-                            redirectTo: currentUrl
-                        }
+                        options: { redirectTo: currentUrl }
                     });
-                    
                     if (error) throw error;
-                    
                 } catch (error) {
+                    mainContainer.classList.remove('expanding');
                     hideLoading();
-                    showMessage('Error signing in: ' + error.message, 'error');
-                    console.error('❌ Sign in error:', error);
+                    showMessage('Error: ' + error.message, 'error');
                 }
             }
             
-            // Sign out
             async function signOut() {
                 showLoading('Signing out...');
-                
                 try {
-                    const { error } = await supabaseClient.auth.signOut();
-                    
-                    if (error) throw error;
-                    
-                    // Reset UI
+                    await supabaseClient.auth.signOut();
                     loginSection.style.display = 'block';
                     codeSection.style.display = 'none';
-                    showMessage('Signed out successfully', 'success');
-                    
                 } catch (error) {
-                    showMessage('Error signing out: ' + error.message, 'error');
-                } finally {
-                    hideLoading();
-                }
+                    showMessage('Error: ' + error.message, 'error');
+                } finally { hideLoading(); }
             }
             
-            // Copy code to clipboard
             copyBtn.addEventListener('click', function() {
-                const code = generatedCode.textContent.replace(/-/g, '');
-                navigator.clipboard.writeText(code).then(() => {
+                navigator.clipboard.writeText(generatedCode.textContent).then(() => {
                     const originalText = copyBtn.textContent;
                     copyBtn.textContent = 'Copied!';
-                    copyBtn.style.background = '#28a745';
-                    
+                    copyBtn.style.background = '#1e7e34';
                     setTimeout(() => {
                         copyBtn.textContent = originalText;
-                        copyBtn.style.background = '#667eea';
+                        copyBtn.style.background = 'var(--primary-green)';
                     }, 2000);
                 });
             });
             
-            // Handle OAuth callback from URL
             async function handleOAuthCallback() {
-                console.log('🔄 Checking for OAuth callback...');
-                
                 if (window.location.hash && window.location.hash.includes('access_token')) {
-                    console.log('✅ OAuth callback detected in URL');
-                    showLoading('Completing authentication...');
-                    
                     try {
-                        // Supabase will automatically handle the hash fragment
-                        const { data, error } = await supabaseClient.auth.getSession();
-                        
-                        if (error) {
-                            console.error('❌ Session error during callback:', error);
-                            throw error;
-                        }
-                        
-                        if (data && data.session) {
-                            console.log('👤 User authenticated via callback:', data.session.user.email);
+                        const { data } = await supabaseClient.auth.getSession();
+                        if (data?.session) {
                             await handleUserSession(data.session.user);
-                            
-                            // Clean URL
                             window.history.replaceState(null, '', window.location.pathname);
                         }
-                        
-                    } catch (error) {
-                        console.error('❌ OAuth callback error:', error);
-                        showMessage('Authentication error: ' + error.message, 'error');
-                        hideLoading();
-                    }
+                    } catch (error) {}
                 }
             }
             
-            // Check for existing session on page load
-            async function checkExistingSession() {
-                try {
-                    console.log('🔍 Checking for existing session...');
-                    
-                    const { data, error } = await supabaseClient.auth.getSession();
-                    
-                    if (error) {
-                        console.error('❌ Session check error:', error);
-                        hideLoading();
-                        loginSection.style.display = 'block';
-                        codeSection.style.display = 'none';
-                        return;
-                    }
-                    
-                    if (data && data.session) {
-                        console.log('✅ Found existing session for user:', data.session.user.email);
-                        await handleUserSession(data.session.user);
-                    } else {
-                        console.log('❌ No existing session found');
-                        hideLoading();
-                        loginSection.style.display = 'block';
-                        codeSection.style.display = 'none';
-                    }
-                    
-                } catch (error) {
-                    console.error('❌ Error checking session:', error);
-                    hideLoading();
-                    loginSection.style.display = 'block';
-                    codeSection.style.display = 'none';
-                }
-            }
-            
-            // Listen for auth state changes
-            supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                console.log('🔄 Auth state changed:', event);
-                
-                if (event === 'SIGNED_IN' && session) {
-                    console.log('✅ User signed in via state change');
-                    await handleUserSession(session.user);
-                } else if (event === 'SIGNED_OUT') {
-                    console.log('👋 User signed out');
-                    hideLoading();
-                    loginSection.style.display = 'block';
-                    codeSection.style.display = 'none';
-                } else if (event === 'INITIAL_SESSION') {
-                    console.log('🚀 Initial session loaded');
-                }
+            window.addEventListener('DOMContentLoaded', async () => {
+                await handleOAuthCallback();
+                const { data } = await supabaseClient.auth.getSession();
+                if (data?.session) await handleUserSession(data.session.user);
             });
-            
-            // Event listeners
+
             googleSignInBtn.addEventListener('click', signInWithGoogle);
             signOutBtn.addEventListener('click', signOut);
-            
-            // Initialize on page load
-            window.addEventListener('DOMContentLoaded', async () => {
-                console.log('🚀 === Page Loaded ===');
-                
-                // Show loading initially
-                showLoading('Initializing...');
-                
-                // First handle OAuth callback if present
-                await handleOAuthCallback();
-                
-                // Then check for existing session
-                await checkExistingSession();
-                
-                console.log('✅ === Initialization Complete ===');
-            });
-            
         })();
     </script>
 </body>
 </html>
-
